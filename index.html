@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PT Doc Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f3f0;
+    --surface: #ffffff;
+    --surface2: #eeede9;
+    --border: #d4d1c9;
+    --border2: #bbb8b0;
+    --accent: #2b6cb0;
+    --accent2: #1a4a80;
+    --accent-light: #dbeafe;
+    --text: #1a1916;
+    --text2: #5a5751;
+    --text3: #9a9690;
+    --green: #276749;
+    --green-bg: #f0fff4;
+    --red: #9b2335;
+    --red-bg: #fff5f5;
+    --wildcard: #7c3aed;
+    --wildcard-bg: #f5f3ff;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --radius: 4px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    background: var(--text);
+    color: #fff;
+    padding: 0 16px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    border-bottom: 2px solid var(--accent);
+  }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  header span {
+    font-size: 11px;
+    color: #888;
+    font-family: var(--mono);
+  }
+
+  #columns {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 10px;
+    gap: 8px;
+    min-width: 80px;
+  }
+
+  .divider {
+    width: 5px;
+    background: var(--border);
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .divider:hover, .divider.dragging { background: var(--accent); }
+  .divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;
+    height: 30px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 1px;
+  }
+
+  .col-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* Search Box */
+  #searchBox {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+  #searchBox:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(43,108,176,0.12);
+  }
+  #searchBox::placeholder { color: var(--text3); }
+
+  /* Nav Box */
+  #navBox {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 0;
+  }
+
+  .nav-region {
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-region:last-child { border-bottom: none; }
+
+  .nav-region-header {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 8px 10px 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    user-select: none;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+  }
+  .nav-region-header:first-child { border-top: none; }
+  .nav-region-header:hover { color: var(--accent); }
+  .nav-region-header .chevron { font-size: 8px; transition: transform 0.15s; }
+  .nav-region-header.collapsed .chevron { transform: rotate(-90deg); }
+
+  .nav-items { padding: 2px 0 4px; }
+  .nav-items.hidden { display: none; }
+
+  .nav-section-label {
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 10px 2px 16px;
+  }
+
+  .nav-item {
+    padding: 4px 10px 4px 16px;
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 12px;
+    border-left: 2px solid transparent;
+    transition: all 0.1s;
+  }
+  .nav-item:hover { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); }
+  .nav-item.active { background: var(--accent-light); color: var(--accent2); border-left-color: var(--accent2); font-weight: 500; }
+
+  /* TX Box */
+  #txBox {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 0;
+  }
+
+  .tx-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    border-left: 3px solid transparent;
+  }
+  .tx-item:last-child { border-bottom: none; }
+  .tx-item:hover { background: var(--accent-light); border-left-color: var(--accent); }
+  .tx-item:active { background: #dbeafe; }
+
+  .tx-name {
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .tx-desc {
+    font-size: 11.5px;
+    color: var(--text2);
+    line-height: 1.4;
+  }
+  .tx-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 4px;
+  }
+  .tx-tag {
+    font-size: 9.5px;
+    font-family: var(--mono);
+    background: var(--surface2);
+    color: var(--text3);
+    padding: 1px 5px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+  }
+  .tx-empty {
+    padding: 24px 16px;
+    color: var(--text3);
+    font-size: 12px;
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-row { display: flex; gap: 6px; flex-shrink: 0; }
+
+  .btn-clear {
+    background: var(--red-bg);
+    color: var(--red);
+    border: 1.5px solid #fca5a5;
+    flex: 1;
+  }
+  .btn-clear:hover { background: #fee2e2; border-color: var(--red); }
+
+  .btn-copy {
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1.5px solid #86efac;
+    flex: 1;
+  }
+  .btn-copy:hover { background: #dcfce7; border-color: var(--green); }
+
+  .btn-print {
+    background: var(--accent);
+    color: #fff;
+    border: 1.5px solid var(--accent2);
+    width: 100%;
+  }
+  .btn-print:hover { background: var(--accent2); }
+
+  /* TD Box */
+  #tdBox {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 0;
+  }
+  #tdBox.drag-over { border-color: var(--accent); background: var(--accent-light); }
+
+  #tdBox.empty-paste {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #tdBox.empty-paste::after {
+    content: 'Paste text here or add treatments from list';
+    color: var(--text3);
+    font-size: 11.5px;
+    font-style: italic;
+    text-align: center;
+    padding: 16px;
+    pointer-events: none;
+  }
+
+  .td-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    position: relative;
+    cursor: grab;
+    background: var(--surface);
+    transition: box-shadow 0.1s, background 0.1s;
+    user-select: none;
+  }
+  .td-item:last-child { border-bottom: none; }
+  .td-item.dragging { opacity: 0.4; }
+  .td-item.drag-target-above::before {
+    content: '';
+    display: block;
+    height: 2px;
+    background: var(--accent);
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+  }
+  .td-item.drag-target-below::after {
+    content: '';
+    display: block;
+    height: 2px;
+    background: var(--accent);
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+  }
+
+  .td-item-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .td-name {
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--text);
+  }
+  .td-remove {
+    font-size: 14px;
+    color: var(--text3);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+    transition: color 0.1s;
+  }
+  .td-remove:hover { color: var(--red); }
+
+  .td-text {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  /* Wildcards */
+  .wildcard {
+    display: inline;
+    background: var(--wildcard-bg);
+    color: var(--wildcard);
+    border: 1px dashed #a78bfa;
+    border-radius: 2px;
+    padding: 0 3px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    transition: background 0.1s;
+    outline: none;
+  }
+  .wildcard:hover { background: #ede9fe; }
+  .wildcard:focus {
+    background: #ede9fe;
+    border-style: solid;
+    border-color: var(--wildcard);
+    box-shadow: 0 0 0 2px rgba(124,58,237,0.2);
+  }
+
+  /* Print Box */
+  #printBox {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 0;
+  }
+
+  .print-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .print-item:last-child { border-bottom: none; }
+
+  .print-item-img {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 3px;
+    display: block;
+    background: var(--surface2);
+  }
+  .print-item-label {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+    color: #fff;
+    font-weight: 600;
+    font-size: 11.5px;
+    padding: 20px 10px 6px;
+  }
+  .print-item-no-img {
+    height: 50px;
+    background: var(--surface2);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text3);
+    font-size: 11px;
+    font-style: italic;
+  }
+  .print-item-name-only {
+    padding: 8px 4px;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--surface2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  /* Print styles */
+  @media print {
+    body { height: auto; overflow: auto; background: #fff; }
+    #app { display: none; }
+    #printDoc { display: block !important; }
+  }
+
+  #printDoc {
+    display: none;
+    font-family: var(--sans);
+    padding: 20px;
+  }
+
+  .print-tx {
+    page-break-inside: avoid;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #333;
+  }
+  .print-tx:last-child { border-bottom: none; }
+  .print-tx-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .print-tx-desc {
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 12px;
+  }
+  .print-tx-instructions {
+    font-size: 12px;
+    color: #333;
+    margin-bottom: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .print-tx-pics {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .print-tx-pics img {
+    max-height: 200px;
+    border-radius: 4px;
+    object-fit: contain;
+  }
+
+  /* Copy feedback */
+  .copy-flash {
+    animation: flash 0.4s ease;
+  }
+  @keyframes flash {
+    0% { background: var(--green-bg); }
+    50% { background: #dcfce7; }
+    100% { background: var(--green-bg); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1>PT Doc Tool</h1>
+    <span>physical therapy documentation assistant</span>
+  </header>
+  <div id="columns">
+    <div class="col" id="col1" style="width:220px; min-width:80px;">
+      <div class="col-label">Navigate</div>
+      <input type="text" id="searchBox" placeholder="Search treatments…" autocomplete="off" spellcheck="false">
+      <div id="navBox"></div>
+    </div>
+    <div class="divider" id="div1"></div>
+    <div class="col" id="col2" style="width:280px; min-width:80px;">
+      <div class="col-label">Treatments</div>
+      <div id="txBox"><div class="tx-empty">Select a category or search above</div></div>
+    </div>
+    <div class="divider" id="div2"></div>
+    <div class="col" id="col3" style="width:320px; min-width:80px;">
+      <div class="col-label">Working List</div>
+      <div class="btn-row">
+        <button class="btn btn-clear" id="clearButt">✕ Clear</button>
+        <button class="btn btn-copy" id="copyButt">⎘ Copy</button>
+      </div>
+      <div id="tdBox" tabindex="0"></div>
+    </div>
+    <div class="divider" id="div3"></div>
+    <div class="col" id="col4" style="flex:1; min-width:80px;">
+      <div class="col-label">Print Preview</div>
+      <button class="btn btn-print" id="printButt">⎙ Print / Export</button>
+      <div id="printBox"></div>
+    </div>
+  </div>
+</div>
+
+<div id="printDoc"></div>
+
+<script>
+// ============================================================
+// DATABASE — edit freely below
+// ============================================================
+const MAX_H_PIC = 200; // px
+
+const DB = [
+  {
+    id: 1,
+    name: "Quad Sets",
+    description: "Isometric quadriceps strengthening exercise",
+    instructions: "Lie flat on your back with your leg straight. Tighten the muscle on top of your thigh (quadriceps) by pressing the back of your knee toward the floor. Hold for ***hold time (5-10 sec)***, then relax. Repeat [number of reps] times, [number of sets] sets.",
+    keywords: "quad quadriceps isometric knee strengthening",
+    region: "Knee",
+    pictures: [],
+    conditions: ["Knee Osteoarthritis", "Post-op TKA", "Patellofemoral Pain"],
+    findings: ["Quad weakness", "Limited knee flexion", "Post-surgical precautions"]
+  },
+  {
+    id: 2,
+    name: "Straight Leg Raises",
+    description: "Hip flexor and quad strengthening in supine",
+    instructions: "Lie on your back. Bend one knee with foot flat on the floor. Keep the other leg straight and tighten the thigh muscle. Lift the straight leg to the height of the bent knee, hold [hold time], then slowly lower. Complete [number of reps] reps for [number of sets] sets.",
+    keywords: "SLR hip flexor quad strengthening supine",
+    region: "Knee",
+    pictures: [],
+    conditions: ["Knee Osteoarthritis", "Post-op TKA", "Hip Labral Tear"],
+    findings: ["Quad weakness", "Hip flexor weakness", "Post-surgical precautions"]
+  },
+  {
+    id: 3,
+    name: "Clamshells",
+    description: "Hip external rotator and abductor strengthening",
+    instructions: "Lie on your side with hips bent to ~45° and knees bent to ~90°, feet together. Keeping your feet together, rotate your top knee upward like a clam opening, without rolling your pelvis back. Hold at the top for [hold time], then lower slowly. Do [number of reps] reps on each side for [number of sets] sets.",
+    keywords: "clamshell hip abductor external rotator glute med sidelying",
+    region: "Hip",
+    pictures: [],
+    conditions: ["Hip Bursitis", "IT Band Syndrome", "Patellofemoral Pain", "Hip Labral Tear"],
+    findings: ["Hip abductor weakness", "Hip ER weakness", "Trendelenburg gait"]
+  },
+  {
+    id: 4,
+    name: "Bridge",
+    description: "Glute and core strengthening in supine",
+    instructions: "Lie on your back with knees bent and feet flat on the floor, hip-width apart. Squeeze your glutes and lift your hips off the floor until your body forms a straight line from shoulders to knees. Hold for [hold time], then lower slowly. Perform [number of reps] reps for [number of sets] sets.",
+    keywords: "bridge glute hip extension core lumbar stabilization",
+    region: "Hip",
+    pictures: [],
+    conditions: ["Low Back Pain", "Hip Bursitis", "Post-op THA", "Patellofemoral Pain"],
+    findings: ["Glute weakness", "Core weakness", "Lumbar instability"]
+  },
+  {
+    id: 5,
+    name: "Prone Hip Extension",
+    description: "Isolated glute max strengthening",
+    instructions: "Lie face down on a flat surface with your legs straight. Tighten the glute on one side and lift that leg straight up, keeping your knee straight. Raise only to the point of comfort without rotating your pelvis. Hold [hold time], lower slowly. Perform [number of reps] reps each side for [number of sets] sets.",
+    keywords: "prone hip extension glute max strengthening prone lying",
+    region: "Hip",
+    pictures: [],
+    conditions: ["Low Back Pain", "Post-op THA", "Hip Bursitis"],
+    findings: ["Glute max weakness", "Hip extension deficit"]
+  },
+  {
+    id: 6,
+    name: "Cervical Retraction (Chin Tucks)",
+    description: "Deep cervical flexor activation and posture correction",
+    instructions: "Sit or stand tall. Gently draw your chin straight back, creating a 'double chin' without tilting your head up or down. You should feel a gentle stretch at the base of your skull. Hold [hold time], then release. Perform [number of reps] reps for [number of sets] sets.",
+    keywords: "chin tuck cervical retraction deep neck flexor posture",
+    region: "Cervical",
+    pictures: [],
+    conditions: ["Cervical Radiculopathy", "Cervicogenic Headache", "Forward Head Posture"],
+    findings: ["Forward head posture", "Deep cervical flexor weakness", "Upper trap dominance"]
+  },
+  {
+    id: 7,
+    name: "Cervical AROM",
+    description: "Active range of motion exercises for the neck",
+    instructions: "Sitting upright, slowly move your head through the following motions, going only as far as comfortable:\n• Flexion/Extension: Tuck chin toward chest, then look up\n• Rotation: Turn head left, then right\n• Side Bending: Ear toward shoulder left, then right\nHold each end range for [hold time]. Repeat [number of reps] times each direction.",
+    keywords: "cervical ROM range of motion neck flexion extension rotation sidebend",
+    region: "Cervical",
+    pictures: [],
+    conditions: ["Cervical Strain", "Cervicogenic Headache", "Cervical Osteoarthritis"],
+    findings: ["Cervical ROM restriction", "Neck stiffness", "Hypomobility"]
+  },
+  {
+    id: 8,
+    name: "Thoracic Extension over Roll",
+    description: "Thoracic mobility exercise using foam roll or towel roll",
+    instructions: "Place a foam roller or tightly rolled towel perpendicular to your spine at the mid-back level. Support your head with your hands. Gently extend backward over the roll, pausing at any stiff segments. Slowly move the roll to adjacent segments. Spend [hold time] at each level. Repeat [number of reps] times.",
+    keywords: "thoracic extension foam roller mobility T-spine thoracic kyphosis",
+    region: "Thoracic",
+    pictures: [],
+    conditions: ["Thoracic Kyphosis", "Cervicogenic Headache", "Shoulder Impingement"],
+    findings: ["Thoracic hypomobility", "Thoracic kyphosis", "Limited thoracic extension"]
+  },
+  {
+    id: 9,
+    name: "Scapular Retraction",
+    description: "Mid-trap and rhomboid strengthening for scapular stability",
+    instructions: "Sit or stand tall. Squeeze your shoulder blades together and slightly downward, as if pinching a pencil between them. Do NOT shrug your shoulders. Hold [hold time], then release. Perform [number of reps] reps for [number of sets] sets. Can be done with resistance band: [resistance color/level].",
+    keywords: "scapular retraction rhomboid mid trap posture shoulder blade squeezing",
+    region: "Shoulder",
+    pictures: [],
+    conditions: ["Shoulder Impingement", "Rotator Cuff Tendinopathy", "Forward Head Posture"],
+    findings: ["Scapular dyskinesis", "Mid trap weakness", "Protracted scapula"]
+  },
+  {
+    id: 10,
+    name: "Pendulum Exercise",
+    description: "Gentle shoulder distraction and ROM exercise",
+    instructions: "Stand and lean forward, resting your uninvolved hand on a table for support. Let your affected arm hang freely. Use gentle body momentum (not arm muscles) to swing the arm in:\n• Circles: clockwise and counterclockwise\n• Front to back\n• Side to side\nPerform for [duration] minutes. Arm should feel relaxed and heavy throughout.",
+    keywords: "pendulum Codman shoulder ROM adhesive capsulitis frozen shoulder post-op",
+    region: "Shoulder",
+    pictures: [],
+    conditions: ["Adhesive Capsulitis", "Post-op Rotator Cuff Repair", "Shoulder Impingement"],
+    findings: ["Limited shoulder ROM", "Shoulder pain", "Post-surgical precautions"]
+  },
+  {
+    id: 11,
+    name: "Ankle Pumps",
+    description: "Ankle dorsi/plantarflexion for circulation and ROM",
+    instructions: "Lie or sit with your leg elevated. Slowly move your foot up (pull toes toward you) and then down (point toes away), moving through your full comfortable range. Perform [number of reps] repetitions, [number of sets] sets, [frequency] times per day.",
+    keywords: "ankle pumps dorsiflexion plantarflexion circulation DVT prevention post-op swelling",
+    region: "Ankle/Foot",
+    pictures: [],
+    conditions: ["Post-op Ankle Fracture", "Ankle Sprain", "DVT Prevention"],
+    findings: ["Ankle ROM restriction", "Edema", "Post-surgical precautions"]
+  },
+  {
+    id: 12,
+    name: "Calf Raises",
+    description: "Gastrocnemius/soleus strengthening",
+    instructions: "Stand with feet hip-width apart near a wall or counter for balance. Rise up onto your toes as high as possible, hold [hold time], then slowly lower. Ensure even weight bearing through both feet unless instructed otherwise. Perform [number of reps] reps for [number of sets] sets. ***Progression: single-leg***",
+    keywords: "calf raises gastrocnemius soleus plantarflexion strengthening Achilles",
+    region: "Ankle/Foot",
+    pictures: [],
+    conditions: ["Achilles Tendinopathy", "Plantar Fasciitis", "Ankle Sprain"],
+    findings: ["Calf weakness", "Plantarflexion weakness", "Achilles loading deficit"]
+  },
+  {
+    id: 13,
+    name: "Cat-Cow",
+    description: "Lumbar mobility and spinal movement exercise",
+    instructions: "Start on hands and knees (quadruped). For 'Cat': exhale and round your back upward toward the ceiling, tucking your pelvis and chin. For 'Cow': inhale and let your belly drop toward the floor, lifting your head and tailbone. Move smoothly between positions. Perform [number of reps] repetitions.",
+    keywords: "cat cow lumbar mobility spine quadruped flexion extension",
+    region: "Lumbar",
+    pictures: [],
+    conditions: ["Low Back Pain", "Lumbar Stenosis", "Lumbar Disc Herniation"],
+    findings: ["Lumbar hypomobility", "Lumbar stiffness", "Limited lumbar flexion/extension"]
+  },
+  {
+    id: 14,
+    name: "Knee-to-Chest Stretch",
+    description: "Lumbar flexion stretch and hip flexor lengthening",
+    instructions: "Lie on your back. Bring one (or both) knees toward your chest, grasping behind the thigh or shin. Gently pull the knee(s) closer until you feel a comfortable stretch in the low back and buttock. Hold for [hold time], relax. Perform [number of reps] reps each leg.",
+    keywords: "knee to chest lumbar flexion stretch low back hip flexor",
+    region: "Lumbar",
+    pictures: [],
+    conditions: ["Low Back Pain", "Lumbar Stenosis", "Lumbar Disc Herniation"],
+    findings: ["Lumbar tightness", "Hip flexor tightness", "Limited lumbar flexion"]
+  },
+  {
+    id: 15,
+    name: "Wrist Flexor/Extensor Stretch",
+    description: "Forearm flexibility for wrist and elbow conditions",
+    instructions: "For Flexor Stretch: Extend arm with palm facing up; use other hand to gently bend wrist down (fingers pointing floor). For Extensor Stretch: Extend arm with palm facing down; use other hand to gently bend wrist down (fingers pointing floor). Hold each for [hold time]. Perform [number of reps] reps.",
+    keywords: "wrist stretch forearm flexor extensor tennis elbow golfer lateral medial epicondyle",
+    region: "Elbow/Wrist",
+    pictures: [],
+    conditions: ["Lateral Epicondylitis", "Medial Epicondylitis", "Carpal Tunnel Syndrome"],
+    findings: ["Wrist flexor tightness", "Wrist extensor tightness", "Forearm tightness"]
+  },
+  {
+    id: 16,
+    name: "Ice / Cryotherapy",
+    description: "Cold modality for pain relief and inflammation management",
+    instructions: "Apply ice pack (or frozen gel pack wrapped in a thin towel — do not apply ice directly to skin) to the ***affected area*** for [duration, typically 10-15 min]. Remove if skin becomes numb. Use [frequency] times per day as needed for pain and swelling. ***Do not use over areas with impaired sensation or circulation issues***.",
+    keywords: "ice cryotherapy cold modality pain swelling inflammation acute",
+    region: "General",
+    pictures: [],
+    conditions: ["Acute Injury", "Post-op", "Inflammation"],
+    findings: ["Acute pain", "Edema", "Inflammation", "Post-surgical precautions"]
+  },
+  {
+    id: 17,
+    name: "Heat Therapy",
+    description: "Moist heat modality for muscle relaxation and pain relief",
+    instructions: "Apply moist heat pack (wrapped in 6-8 layers of toweling) to the ***affected area*** for [duration, typically 15-20 min]. Check skin every 5 minutes. Remove if skin becomes excessively red or you feel burning. Use [frequency] times per day. ***Do not use over areas with acute inflammation, impaired sensation, or open wounds***.",
+    keywords: "heat moist heat modality muscle spasm pain chronic relaxation",
+    region: "General",
+    pictures: [],
+    conditions: ["Muscle Spasm", "Chronic Pain", "Stiffness"],
+    findings: ["Muscle guarding", "Chronic pain", "Stiffness", "Subacute/chronic presentation"]
+  }
+];
+
+// ============================================================
+// END DATABASE
+// ============================================================
+
+// Build lookup structures
+const regions = {};
+const allConditions = {};
+const allFindings = {};
+
+DB.forEach(tx => {
+  if (!regions[tx.region]) regions[tx.region] = [];
+  regions[tx.region].push(tx);
+  tx.conditions.forEach(c => {
+    if (!allConditions[c]) allConditions[c] = [];
+    allConditions[c].push(tx);
+  });
+  tx.findings.forEach(f => {
+    if (!allFindings[f]) allFindings[f] = [];
+    allFindings[f].push(tx);
+  });
+});
+
+// ============================================================
+// STATE
+// ============================================================
+let tdItems = []; // {id, name, description, instructions, pictures, editedText}
+let activeNavItem = null;
+let dragSrcIdx = null;
+
+// ============================================================
+// COLUMN RESIZING
+// ============================================================
+function initResizers() {
+  const cols = ['col1','col2','col3','col4'];
+  const divs = ['div1','div2','div3'];
+
+  // Restore widths
+  cols.forEach(id => {
+    const saved = localStorage.getItem('col-width-'+id);
+    if (saved) document.getElementById(id).style.width = saved;
+  });
+
+  divs.forEach((divId, i) => {
+    const divEl = document.getElementById(divId);
+    const leftCol = document.getElementById(cols[i]);
+    const rightCol = document.getElementById(cols[i+1]);
+
+    let startX, startLeftW, startRightW;
+
+    const onMove = e => {
+      const dx = e.clientX - startX;
+      const newLeft = Math.max(80, startLeftW + dx);
+      const newRight = Math.max(80, startRightW - dx);
+      if (newLeft >= 80 && newRight >= 80) {
+        leftCol.style.width = newLeft + 'px';
+        leftCol.style.flex = 'none';
+        rightCol.style.width = newRight + 'px';
+        rightCol.style.flex = 'none';
+        // col4 uses flex:1 when no explicit resize
+      }
+    };
+    const onUp = () => {
+      divEl.classList.remove('dragging');
+      // Save
+      cols.forEach(id => {
+        const el = document.getElementById(id);
+        localStorage.setItem('col-width-'+id, el.style.width || '');
+      });
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    divEl.addEventListener('mousedown', e => {
+      e.preventDefault();
+      startX = e.clientX;
+      startLeftW = leftCol.getBoundingClientRect().width;
+      startRightW = rightCol.getBoundingClientRect().width;
+      divEl.classList.add('dragging');
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+// ============================================================
+// NAV BOX
+// ============================================================
+function buildNavBox() {
+  const navBox = document.getElementById('navBox');
+  navBox.innerHTML = '';
+
+  Object.keys(regions).sort().forEach(region => {
+    const regionDiv = document.createElement('div');
+    regionDiv.className = 'nav-region';
+
+    const header = document.createElement('div');
+    header.className = 'nav-region-header';
+    header.innerHTML = `<span class="chevron">▼</span> ${region}`;
+    header.addEventListener('click', () => {
+      header.classList.toggle('collapsed');
+      items.classList.toggle('hidden');
+    });
+    regionDiv.appendChild(header);
+
+    const items = document.createElement('div');
+    items.className = 'nav-items';
+
+    // Conditions for this region
+    const regionConditions = new Set();
+    const regionFindings = new Set();
+    regions[region].forEach(tx => {
+      tx.conditions.forEach(c => regionConditions.add(c));
+      tx.findings.forEach(f => regionFindings.add(f));
+    });
+
+    if (regionConditions.size > 0) {
+      const lbl = document.createElement('div');
+      lbl.className = 'nav-section-label';
+      lbl.textContent = 'Conditions';
+      items.appendChild(lbl);
+      [...regionConditions].sort().forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'nav-item';
+        item.textContent = c;
+        item.dataset.type = 'condition';
+        item.dataset.value = c;
+        item.addEventListener('click', () => {
+          setActiveNav(item);
+          showCondition(c);
+        });
+        items.appendChild(item);
+      });
+    }
+
+    if (regionFindings.size > 0) {
+      const lbl = document.createElement('div');
+      lbl.className = 'nav-section-label';
+      lbl.textContent = 'Findings';
+      items.appendChild(lbl);
+      [...regionFindings].sort().forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'nav-item';
+        item.textContent = f;
+        item.dataset.type = 'finding';
+        item.dataset.value = f;
+        item.addEventListener('click', () => {
+          setActiveNav(item);
+          showFinding(f);
+        });
+        items.appendChild(item);
+      });
+    }
+
+    regionDiv.appendChild(items);
+    navBox.appendChild(regionDiv);
+  });
+}
+
+function setActiveNav(el) {
+  if (activeNavItem) activeNavItem.classList.remove('active');
+  activeNavItem = el;
+  el.classList.add('active');
+}
+
+function showCondition(c) {
+  document.getElementById('searchBox').value = '';
+  renderTxBox(allConditions[c] || []);
+}
+function showFinding(f) {
+  document.getElementById('searchBox').value = '';
+  renderTxBox(allFindings[f] || []);
+}
+
+// ============================================================
+// TX BOX
+// ============================================================
+function renderTxBox(txList) {
+  const txBox = document.getElementById('txBox');
+  txBox.innerHTML = '';
+  if (!txList || txList.length === 0) {
+    txBox.innerHTML = '<div class="tx-empty">No treatments found</div>';
+    return;
+  }
+  txList.forEach(tx => {
+    const item = document.createElement('div');
+    item.className = 'tx-item';
+    item.innerHTML = `<div class="tx-name">${tx.name}</div><div class="tx-desc">${tx.description}</div>`;
+    item.addEventListener('click', () => addToTd(tx));
+    txBox.appendChild(item);
+  });
+}
+
+function searchTx(query) {
+  if (!query.trim()) {
+    document.getElementById('txBox').innerHTML = '<div class="tx-empty">Select a category or search above</div>';
+    if (activeNavItem) activeNavItem.classList.remove('active');
+    activeNavItem = null;
+    return;
+  }
+  const q = query.toLowerCase();
+  // Sort: name match first, then keyword, then description
+  const byName = DB.filter(tx => tx.name.toLowerCase().includes(q));
+  const byKw = DB.filter(tx => !byName.includes(tx) && tx.keywords.toLowerCase().includes(q));
+  const byDesc = DB.filter(tx => !byName.includes(tx) && !byKw.includes(tx) && tx.description.toLowerCase().includes(q));
+  renderTxBox([...byName, ...byKw, ...byDesc]);
+}
+
+// ============================================================
+// TD BOX
+// ============================================================
+function addToTd(tx) {
+  const uid = Date.now() + Math.random();
+  tdItems.push({
+    uid,
+    id: tx.id,
+    name: tx.name,
+    description: tx.description,
+    instructions: tx.instructions,
+    pictures: tx.pictures || [],
+    isPasted: false
+  });
+  renderTdBox();
+  renderPrintBox();
+}
+
+function renderTdBox() {
+  const tdBox = document.getElementById('tdBox');
+  tdBox.classList.remove('empty-paste');
+  tdBox.innerHTML = '';
+
+  if (tdItems.length === 0) {
+    tdBox.classList.add('empty-paste');
+    return;
+  }
+
+  tdItems.forEach((item, idx) => {
+    const el = document.createElement('div');
+    el.className = 'td-item';
+    el.draggable = true;
+    el.dataset.idx = idx;
+
+    const header = document.createElement('div');
+    header.className = 'td-item-header';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'td-name';
+    nameEl.textContent = item.name;
+
+    const removeBtn = document.createElement('div');
+    removeBtn.className = 'td-remove';
+    removeBtn.textContent = '×';
+    removeBtn.title = 'Remove';
+    removeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      tdItems.splice(idx, 1);
+      renderTdBox();
+      renderPrintBox();
+    });
+
+    header.appendChild(nameEl);
+    header.appendChild(removeBtn);
+    el.appendChild(header);
+
+    const textEl = document.createElement('div');
+    textEl.className = 'td-text';
+    textEl.innerHTML = renderWildcards(item.description + '\n' + item.instructions, idx);
+    el.appendChild(textEl);
+
+    // Drag events
+    el.addEventListener('dragstart', e => {
+      dragSrcIdx = idx;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      document.querySelectorAll('.td-item').forEach(i => {
+        i.classList.remove('drag-target-above', 'drag-target-below');
+      });
+    });
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const rect = el.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      document.querySelectorAll('.td-item').forEach(i => {
+        i.classList.remove('drag-target-above', 'drag-target-below');
+      });
+      if (e.clientY < mid) el.classList.add('drag-target-above');
+      else el.classList.add('drag-target-below');
+    });
+    el.addEventListener('dragleave', () => {
+      el.classList.remove('drag-target-above', 'drag-target-below');
+    });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrcIdx === null || dragSrcIdx === idx) return;
+      const rect = el.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      const insertAfter = e.clientY >= mid;
+      const moved = tdItems.splice(dragSrcIdx, 1)[0];
+      let targetIdx = idx > dragSrcIdx ? idx - 1 : idx;
+      if (insertAfter) targetIdx++;
+      tdItems.splice(targetIdx, 0, moved);
+      dragSrcIdx = null;
+      renderTdBox();
+      renderPrintBox();
+    });
+
+    tdBox.appendChild(el);
+  });
+}
+
+function renderWildcards(text, itemIdx) {
+  // Match ***...***, [...]
+  const parts = [];
+  const regex = /(\*\*\*[^*]*\*\*\*|\[[^\]]+\])/g;
+  let lastIdx = 0;
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > lastIdx) {
+      parts.push(escHtml(text.slice(lastIdx, m.index)));
+    }
+    const raw = m[0];
+    const inner = raw.startsWith('***') ? raw.slice(3, -3) : raw.slice(1, -1);
+    const wcId = `wc-${itemIdx}-${parts.length}`;
+    parts.push(`<span class="wildcard" contenteditable="true" data-item="${itemIdx}" data-raw="${escHtml(raw)}" id="${wcId}" spellcheck="false">${escHtml(inner)}</span>`);
+    lastIdx = m.index + m[0].length;
+  }
+  if (lastIdx < text.length) parts.push(escHtml(text.slice(lastIdx)));
+  return parts.join('').replace(/\n/g, '<br>');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getResolvedText(itemIdx) {
+  const item = tdItems[itemIdx];
+  const fullText = item.description + '\n' + item.instructions;
+  const regex = /(\*\*\*[^*]*\*\*\*|\[[^\]]+\])/g;
+  const spans = document.querySelectorAll(`[data-item="${itemIdx}"]`);
+  let spanIdx = 0;
+  return fullText.replace(regex, () => {
+    const span = spans[spanIdx++];
+    return span ? span.innerText : '';
+  });
+}
+
+// ============================================================
+// PASTE INTO TDBOX
+// ============================================================
+document.getElementById('tdBox').addEventListener('paste', e => {
+  if (tdItems.length > 0) return;
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  if (!text.trim()) return;
+  // Parse pasted text: split by lines, group by "name - description" pattern
+  const lines = text.split('\n').filter(l => l.trim());
+  lines.forEach(line => {
+    const dashIdx = line.indexOf(' - ');
+    let name, description;
+    if (dashIdx > -1) {
+      name = line.slice(0, dashIdx).trim();
+      description = line.slice(dashIdx + 3).trim();
+    } else {
+      name = line.trim();
+      description = '';
+    }
+    const uid = Date.now() + Math.random();
+    tdItems.push({
+      uid,
+      id: null,
+      name,
+      description,
+      instructions: '',
+      pictures: [],
+      isPasted: true
+    });
+  });
+  renderTdBox();
+  renderPrintBox();
+});
+
+// ============================================================
+// CLEAR & COPY
+// ============================================================
+document.getElementById('clearButt').addEventListener('click', () => {
+  tdItems = [];
+  renderTdBox();
+  renderPrintBox();
+});
+
+document.getElementById('copyButt').addEventListener('click', () => {
+  if (tdItems.length === 0) return;
+  const lines = tdItems.map((item, idx) => {
+    const resolved = getResolvedText(idx);
+    return item.name + ' - ' + resolved;
+  });
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+  const btn = document.getElementById('copyButt');
+  btn.classList.add('copy-flash');
+  const origText = btn.textContent;
+  btn.textContent = '✓ Copied!';
+  setTimeout(() => {
+    btn.textContent = origText;
+    btn.classList.remove('copy-flash');
+  }, 1200);
+});
+
+// ============================================================
+// PRINT BOX
+// ============================================================
+function renderPrintBox() {
+  const printBox = document.getElementById('printBox');
+  printBox.innerHTML = '';
+
+  if (tdItems.length === 0) {
+    printBox.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:11px;text-align:center;font-style:italic;">Add treatments to preview</div>';
+    return;
+  }
+
+  tdItems.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'print-item';
+
+    if (item.pictures && item.pictures.length > 0) {
+      const img = document.createElement('img');
+      img.src = item.pictures[0];
+      img.className = 'print-item-img';
+      img.alt = item.name;
+      el.appendChild(img);
+
+      const label = document.createElement('div');
+      label.className = 'print-item-label';
+      label.textContent = item.name;
+      el.appendChild(label);
+    } else {
+      const noImg = document.createElement('div');
+      noImg.className = 'print-item-no-img';
+      noImg.textContent = 'No image';
+      el.appendChild(noImg);
+      const nameLbl = document.createElement('div');
+      nameLbl.className = 'print-item-name-only';
+      nameLbl.textContent = item.name;
+      el.appendChild(nameLbl);
+    }
+
+    printBox.appendChild(el);
+  });
+}
+
+// ============================================================
+// PRINT
+// ============================================================
+document.getElementById('printButt').addEventListener('click', () => {
+  const printDoc = document.getElementById('printDoc');
+  printDoc.innerHTML = '';
+
+  if (tdItems.length === 0) {
+    alert('No treatments in working list to print.');
+    return;
+  }
+
+  tdItems.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'print-tx';
+
+    const title = document.createElement('div');
+    title.className = 'print-tx-title';
+    title.textContent = item.name;
+    div.appendChild(title);
+
+    const desc = document.createElement('div');
+    desc.className = 'print-tx-desc';
+    desc.textContent = item.description;
+    div.appendChild(desc);
+
+    if (item.instructions) {
+      const instrText = getResolvedText(idx);
+      const instr = document.createElement('div');
+      instr.className = 'print-tx-instructions';
+      instr.textContent = instrText;
+      div.appendChild(instr);
+    }
+
+    if (item.pictures && item.pictures.length > 0) {
+      const picsDiv = document.createElement('div');
+      picsDiv.className = 'print-tx-pics';
+      item.pictures.forEach(src => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.style.maxHeight = MAX_H_PIC + 'px';
+        img.alt = item.name;
+        picsDiv.appendChild(img);
+      });
+      div.appendChild(picsDiv);
+    }
+
+    printDoc.appendChild(div);
+  });
+
+  printDoc.style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  window.print();
+  document.getElementById('app').style.display = 'flex';
+  printDoc.style.display = 'none';
+});
+
+// ============================================================
+// SEARCH
+// ============================================================
+document.getElementById('searchBox').addEventListener('input', e => {
+  if (activeNavItem) {
+    activeNavItem.classList.remove('active');
+    activeNavItem = null;
+  }
+  searchTx(e.target.value);
+});
+
+// ============================================================
+// INIT
+// ============================================================
+buildNavBox();
+renderTdBox();
+renderPrintBox();
+initResizers();
+</script>
+</body>
+</html>
